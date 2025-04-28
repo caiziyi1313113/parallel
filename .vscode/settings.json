@@ -68,5 +68,6 @@
         "xlocnum": "cpp",
         "xloctime": "cpp",
         "xstring": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

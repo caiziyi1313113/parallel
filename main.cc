@@ -9,10 +9,21 @@
 #include <sstream>
 #include <sys/time.h>
 #include <omp.h>
+
+#include <queue>
+#include <utility>
+#include <cmath>
+
+#include <cstdint>
+#include <fstream>
+#include <iostream>
 //#include "hnswlib/hnswlib/hnswlib.h"
 #include "flat_scan.h"
 // 可以自行添加需要的头文件
-
+#include "pq_index.h"
+//#include "pq_search.h"//头文件引入有问题
+#include "free_pq_index.h"
+#include "pq_search_topp.h"
 //using namespace hnswlib;
 
 template<typename T>
@@ -63,6 +74,7 @@ void build_index(float* base, size_t base_number, size_t vecdim)
 */
 
 
+
 int main(int argc, char *argv[])
 {
     size_t test_number = 0, base_number = 0;
@@ -88,6 +100,13 @@ int main(int argc, char *argv[])
     // build_index(base, base_number, vecdim);
 
     
+    float** codebooks = nullptr;
+    uint8_t** codes = nullptr;
+    uint32_t M, Ks, d, N;//存储子空间数目，聚类中心数目，每个字空间的维度，数据集大小
+    //加载索引
+    load_pq_index("files/pq_index2.bin", codebooks, codes, M, Ks, d, N);
+    
+    
     // 查询测试代码
     for(int i = 0; i < test_number; ++i) {
         const unsigned long Converter = 1000 * 1000;
@@ -96,8 +115,22 @@ int main(int argc, char *argv[])
 
         // 该文件已有代码中你只能修改该函数的调用方式
         // 可以任意修改函数名，函数参数或者改为调用成员函数，但是不能修改函数返回值。
-        auto res = flat_search(base, test_query + i*vecdim, base_number, vecdim, k);
-
+        //auto res = flat_search(base, test_query + i*vecdim, base_number, vecdim, k);
+        /*
+        std::priority_queue<std::pair<float, uint32_t>> pq_adc_search(
+    float** codebooks,
+    uint8_t** pq_codes,
+    float* query,//传入的待测数据
+    float* original_vectors,  // 原始数组，base
+    uint32_t M,//子空间数目
+    uint32_t Ks,//聚类中心数目
+    uint32_t d,//每个子空间的维度？
+    uint32_t N,//样本数目
+    uint32_t topk,//二轮筛选
+    uint32_t topp)//一轮筛选
+{
+        */
+        auto res = pq_adc_search(codebooks, codes,test_query + i*vecdim,base,M,Ks,d,N,k,k+400);//test_query + i*vecdim 为测试数据
         struct timeval newVal;
         ret = gettimeofday(&newVal, NULL);
         int64_t diff = (newVal.tv_sec * Converter + newVal.tv_usec) - (val.tv_sec * Converter + val.tv_usec);
@@ -126,7 +159,7 @@ int main(int argc, char *argv[])
         avg_recall += results[i].recall;
         avg_latency += results[i].latency;
     }
-
+    free_pq_index(codebooks, codes, M, N);
     // 浮点误差可能导致一些精确算法平均recall不是1
     std::cout << "average recall: "<<avg_recall / test_number<<"\n";
     std::cout << "average latency (us): "<<avg_latency / test_number<<"\n";
